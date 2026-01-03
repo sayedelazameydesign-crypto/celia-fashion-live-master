@@ -1,0 +1,271 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ product.name }} - متجر الملابس الذكي{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="{{ product.description }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-6 py-8">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        
+        <!-- 3D Viewer -->
+        <div>
+            <div id="viewer-3d" class="viewer-3d w-full h-96 lg:h-[600px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl relative">
+                <div id="loading" class="absolute inset-0 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="loader mx-auto mb-4"></div>
+                        <p class="text-gray-600">جاري تحميل النموذج ثلاثي الأبعاد...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3D Controls -->
+            <div class="mt-6 flex gap-4">
+                <button onclick="resetCamera()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg transition">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    إعادة ضبط
+                </button>
+                <button onclick="toggleRotation()" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-3 rounded-lg transition">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    تدوير تلقائي
+                </button>
+            </div>
+            
+            <!-- Color Options -->
+            {% if product.available_colors %}
+            <div class="mt-6">
+                <h3 class="font-bold text-gray-800 mb-3">الألوان المتاحة:</h3>
+                <div class="flex gap-3">
+                    {% for color in product.available_colors %}
+                    <button onclick="changeColor('{{ color }}')" 
+                            class="w-12 h-12 rounded-full border-2 border-gray-300 hover:border-purple-600 transition"
+                            style="background-color: {{ color }};"
+                            title="{{ color }}">
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Product Info -->
+        <div>
+            <nav class="text-sm text-gray-500 mb-4">
+                <a href="{{ url_for('main.index') }}" class="hover:text-purple-600">الرئيسية</a>
+                <span class="mx-2">/</span>
+                <span>{{ product.category }}</span>
+                <span class="mx-2">/</span>
+                <span class="text-gray-800">{{ product.name }}</span>
+            </nav>
+            
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">{{ product.name }}</h1>
+            
+            <div class="flex items-center gap-4 mb-6">
+                <span class="text-4xl font-bold text-purple-600">{{ product.price }} ر.س</span>
+                {% if product.stock > 0 %}
+                <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">متوفر ({{ product.stock }})</span>
+                {% else %}
+                <span class="px-4 py-2 bg-red-100 text-red-800 rounded-full text-sm font-medium">غير متوفر</span>
+                {% endif %}
+            </div>
+            
+            <div class="prose max-w-none mb-8">
+                <p class="text-gray-700 leading-relaxed">{{ product.description }}</p>
+            </div>
+            
+            <!-- Tags -->
+            {% if product.ai_tags %}
+            <div class="mb-8">
+                <h3 class="font-bold text-gray-800 mb-3">المميزات:</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag in product.ai_tags %}
+                    <span class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Actions -->
+            <div class="flex gap-4 mb-8">
+                <button onclick="addToCart({{ product.id }}, '{{ product.name }}', {{ product.price }})" 
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-lg font-bold transition flex items-center justify-center gap-2"
+                        {% if product.stock == 0 %}disabled{% endif %}>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    أضف إلى السلة
+                </button>
+                <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-4 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Product Details -->
+            <div class="bg-gray-50 rounded-xl p-6">
+                <h3 class="font-bold text-gray-800 mb-4">تفاصيل المنتج</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">الفئة:</span>
+                        <span class="font-medium text-gray-800">{{ product.category }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">اللون الأساسي:</span>
+                        <span class="font-medium text-gray-800">{{ product.color }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">الكمية المتاحة:</span>
+                        <span class="font-medium text-gray-800">{{ product.stock }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <section class="mt-20">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">منتجات قد تعجبك</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="recommendations">
+            {% for rec in recommendations %}
+            <div class="card-hover bg-white rounded-lg shadow-lg overflow-hidden">
+                <a href="{{ url_for('products.product_detail', product_id=rec.id) }}">
+                    {% if rec.thumbnail_url %}
+                    <img src="{{ rec.thumbnail_url }}" alt="{{ rec.name }}" class="w-full h-48 object-cover">
+                    {% else %}
+                    <div class="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200"></div>
+                    {% endif %}
+                    <div class="p-4">
+                        <h3 class="font-bold text-gray-800 mb-2">{{ rec.name }}</h3>
+                        <span class="text-purple-600 font-bold">{{ rec.price }} ر.س</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+    
+</div>
+
+<script>
+// Three.js 3D Viewer
+let scene, camera, renderer, controls, model;
+let autoRotate = false;
+
+function init3DViewer() {
+    const container = document.getElementById('viewer-3d');
+    const loading = document.getElementById('loading');
+    
+    // Scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+    
+    // Camera
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 1, 3);
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+    
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+    
+    // Controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    
+    // Load Model
+    {% if product.model_3d_url %}
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+        '{{ product.model_3d_url }}',
+        function (gltf) {
+            model = gltf.scene;
+            scene.add(model);
+            loading.style.display = 'none';
+            
+            // Center model
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.sub(center);
+            
+            animate();
+        },
+        function (xhr) {
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function (error) {
+            console.error('Error loading model:', error);
+            loading.innerHTML = '<p class="text-red-600">خطأ في تحميل النموذج</p>';
+        }
+    );
+    {% else %}
+    // No 3D model, show placeholder
+    loading.innerHTML = '<p class="text-gray-600">لا يوجد نموذج ثلاثي الأبعاد لهذا المنتج</p>';
+    {% endif %}
+    
+    // Resize handler
+    window.addEventListener('resize', onWindowResize);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    
+    if (autoRotate && model) {
+        model.rotation.y += 0.005;
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    const container = document.getElementById('viewer-3d');
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+function resetCamera() {
+    camera.position.set(0, 1, 3);
+    controls.reset();
+}
+
+function toggleRotation() {
+    autoRotate = !autoRotate;
+}
+
+function changeColor(color) {
+    if (model) {
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.material.color.set(color);
+            }
+        });
+    }
+}
+
+// Initialize on load
+window.addEventListener('load', init3DViewer);
+</script>
+{% endblock %}

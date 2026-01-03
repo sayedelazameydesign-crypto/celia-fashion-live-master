@@ -1,0 +1,143 @@
+{% extends 'layout.html' %}
+
+{% block title %}{% if article %}تعديل المقال{% else %}مقال جديد{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-6 py-8 max-w-4xl">
+    
+    <!-- Page Header -->
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{{ url_for('admin.list_articles') }}" class="p-2 hover:bg-gray-100 rounded-lg transition">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path>
+            </svg>
+        </a>
+        <h1 class="text-3xl font-bold text-gray-800">
+            {% if article %}تعديل: {{ article.title }}{% else %}كتابة مقال جديد{% endif %}
+        </h1>
+    </div>
+    
+    <!-- Article Form -->
+    <form method="POST" class="bg-white rounded-xl shadow-lg p-8 space-y-6">
+        
+        <!-- Title -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">عنوان المقال *</label>
+            <input type="text" name="title" value="{{ article.title if article else '' }}" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                   placeholder="اكتب عنواناً جذاباً للمقال..." required>
+        </div>
+        
+        <!-- Excerpt -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">المقتطف (ملخص قصير)</label>
+            <textarea name="excerpt" rows="3" 
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      placeholder="ملخص قصير يظهر في قائمة المقالات...">{{ article.excerpt if article else '' }}</textarea>
+        </div>
+        
+        <!-- Content -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">محتوى المقال *</label>
+            <textarea name="content" rows="15" 
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition font-mono text-sm"
+                      placeholder="اكتب محتوى المقال هنا... يمكنك استخدام HTML للتنسيق" required>{{ article.content if article else '' }}</textarea>
+            <p class="text-xs text-gray-500 mt-2">💡 يمكنك استخدام HTML للتنسيق: &lt;h2&gt;، &lt;p&gt;، &lt;strong&gt;، &lt;ul&gt;، &lt;li&gt;</p>
+        </div>
+        
+        <!-- Two Columns -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Category -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">الفئة</label>
+                <select name="category" 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    <option value="">اختر الفئة...</option>
+                    <option value="fashion" {% if article and article.category == 'fashion' %}selected{% endif %}>موضة</option>
+                    <option value="tips" {% if article and article.category == 'tips' %}selected{% endif %}>نصائح</option>
+                    <option value="trends" {% if article and article.category == 'trends' %}selected{% endif %}>ترندات</option>
+                    <option value="culture" {% if article and article.category == 'culture' %}selected{% endif %}>ثقافة</option>
+                    <option value="news" {% if article and article.category == 'news' %}selected{% endif %}>أخبار</option>
+                </select>
+            </div>
+            
+            <!-- Author -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">اسم الكاتب</label>
+                <input type="text" name="author_name" value="{{ article.author_name if article else 'Admin' }}" 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                       placeholder="اسم الكاتب">
+            </div>
+            
+        </div>
+        
+        <!-- Featured Image -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">رابط الصورة البارزة</label>
+            <input type="url" name="featured_image_url" value="{{ article.featured_image_url if article else '' }}" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                   placeholder="https://example.com/image.jpg">
+            <p class="text-xs text-gray-500 mt-2">💡 يمكنك رفع الصورة على Cloudinary والصق الرابط هنا</p>
+        </div>
+        
+        <!-- Tags -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">الوسوم (Tags)</label>
+            <input type="text" name="tags" value="{{ article.tags|join(', ') if article and article.tags else '' }}" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                   placeholder="موضة، صيف، أزياء، نصائح (افصل بفواصل)">
+        </div>
+        
+        <!-- SEO Section -->
+        <div class="border-t pt-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">تحسين محركات البحث (SEO)</h3>
+            
+            <!-- Meta Description -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">وصف Meta (160 حرف كحد أقصى)</label>
+                <textarea name="meta_description" rows="2" maxlength="160"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="وصف مختصر يظهر في نتائج البحث...">{{ article.meta_description if article else '' }}</textarea>
+            </div>
+            
+            <!-- Meta Keywords -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">كلمات مفتاحية</label>
+                <input type="text" name="meta_keywords" value="{{ article.meta_keywords if article else '' }}" 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                       placeholder="كلمة1، كلمة2، كلمة3">
+            </div>
+        </div>
+        
+        <!-- Status Toggles -->
+        <div class="flex gap-6 border-t pt-6">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="published" {% if article and article.published %}checked{% endif %}
+                       class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                <span class="text-sm font-medium text-gray-700">نشر المقال</span>
+            </label>
+            
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="featured" {% if article and article.featured %}checked{% endif %}
+                       class="w-5 h-5 text-yellow-600 border-gray-300 rounded focus:ring-2 focus:ring-yellow-500">
+                <span class="text-sm font-medium text-gray-700">مقال مميز</span>
+            </label>
+        </div>
+        
+        <!-- Submit Buttons -->
+        <div class="flex gap-4 pt-6">
+            <button type="submit" 
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-medium transition">
+                {% if article %}تحديث المقال{% else %}نشر المقال{% endif %}
+            </button>
+            <a href="{{ url_for('admin.list_articles') }}" 
+               class="px-8 py-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                إلغاء
+            </a>
+        </div>
+        
+    </form>
+    
+</div>
+{% endblock %}
