@@ -8,6 +8,15 @@ from app import db
 class AIRecommender:
     """AI-powered product recommendation system using scikit-learn"""
     
+    COMPLEMENTARY_COLORS = {
+        'black': ['white', 'red', 'gold', 'silver'],
+        'white': ['black', 'blue', 'pink', 'beige'],
+        'red': ['black', 'white', 'gold'],
+        'blue': ['white', 'beige', 'yellow'],
+        'green': ['brown', 'black', 'beige'],
+        'beige': ['white', 'brown', 'green'],
+    }
+
     def __init__(self):
         self.vectorizer = TfidfVectorizer(stop_words='english')
     
@@ -106,6 +115,70 @@ class AIRecommender:
         ).limit(limit).all()
         
         return [p.to_dict() for p in similar]
+
+    def recommend_by_rules(self, product_id, limit=4):
+        """
+        Recommend products based on a set of hand-crafted rules.
+        - If it's a dress, recommend shoes and bags.
+        - Recommend complementary colors.
+        """
+        product = Product.query.get(product_id)
+        if not product:
+            return []
+
+        recommendations = []
+
+        # Rule 1: Accessories for dresses
+        if product.category and product.category.lower() == 'dress':
+            accessories = Product.query.filter(
+                Product.category.in_(['shoes', 'bag']),
+                Product.id != product.id
+            ).limit(limit // 2).all()
+            recommendations.extend(accessories)
+
+        # Rule 2: Complementary colors
+        if product.color and product.color.lower() in self.COMPLEMENTARY_COLORS:
+            complementary = self.COMPLEMENTARY_COLORS[product.color.lower()]
+            color_recs = Product.query.filter(
+                Product.color.in_(complementary),
+                Product.id != product.id
+            ).limit(limit // 2).all()
+            recommendations.extend(color_recs)
+
+        # Remove duplicates and respect limit
+        unique_recs = {rec.id: rec for rec in recommendations}.values()
+
+        return [p.to_dict() for p in list(unique_recs)[:limit]]
+
+    def get_product_page_recommendations(self, product_id, limit=8):
+        """
+        Get a combined list of recommendations for a product page.
+        Includes AI similarity, rule-based, and category-based recommendations.
+        """
+        # TODO: This can be optimized to avoid duplicate DB calls.
+
+        ai_recs = self.recommend_by_similarity(product_id, limit=limit//2)
+        rule_recs = self.recommend_by_rules(product_id, limit=limit//2)
+
+        combined_recs = ai_recs + rule_recs
+
+        # Remove duplicates, preserving order
+        seen_ids = set()
+        unique_recs = []
+        for rec in combined_recs:
+            if rec['id'] not in seen_ids:
+                unique_recs.append(rec)
+                seen_ids.add(rec['id'])
+
+        # If not enough recommendations, fill with category items
+        if len(unique_recs) < limit:
+            category_recs = self.recommend_by_category(product_id, limit=limit)
+            for rec in category_recs:
+                if rec['id'] not in seen_ids:
+                    unique_recs.append(rec)
+                    seen_ids.add(rec['id'])
+
+        return unique_recs[:limit]
     
     def recommend_trending(self, limit=8):
         """Get trending/featured products"""
@@ -137,6 +210,49 @@ class AIRecommender:
             description += f" يتميز بـ: {', '.join(tags)}."
         
         return description
+
+    def generate_product_seo(self, name, category, color=None, material=None):
+        """
+        Generate SEO-optimized content for a product page.
+        Includes meta title, meta description, descriptions (Ar/En), and alt text.
+
+        TODO: Replace with a more sophisticated generator (e.g., GPT-3/4)
+        """
+
+        # --- Meta Title (Arabic) ---
+        meta_title = f"اشتري {name} {category} اونلاين | سيليا فاشون مصر"
+        if len(meta_title) > 60:
+            meta_title = f"{name} | سيليا فاشون"
+
+        # --- Meta Description (Arabic) ---
+        meta_description = f"تسوقي الآن {name}، أفضل {category} مصنوع من {material or 'أجود الخامات'} وبلون {color or 'مميز'}. توصيل سريع لكل محافظات مصر."
+        if len(meta_description) > 160:
+            meta_description = meta_description[:157] + "..."
+
+        # --- Product Description (Arabic) ---
+        description_ar = (
+            f"جددي ستايلك مع {name} الرائع، وهو قطعة أساسية في دولاب كل بنت عصرية. "
+            f"هذا الـ {category} مصنوع بعناية من {material or 'أقمشة عالية الجودة'} لضمان الراحة والأناقة في نفس الوقت. "
+            f"تصميمه الفريد ولونه الـ {color or 'جذاب'} يجعله مثالي للخروجات اليومية أو المناسبات الخاصة."
+        )
+
+        # --- Product Description (English) ---
+        description_en = (
+            f"Elevate your style with the stunning {name}, a must-have piece for every modern woman's wardrobe. "
+            f"This {category} is carefully crafted from {material or 'high-quality fabrics'} to ensure both comfort and elegance. "
+            f"Its unique design and {color or 'attractive'} color make it perfect for daily outings or special occasions."
+        )
+
+        # --- Image Alt Text ---
+        alt_text = f"صورة {name} - {category} باللون {color or 'المميز'}"
+
+        return {
+            'meta_title': meta_title,
+            'meta_description': meta_description,
+            'description_ar': description_ar,
+            'description_en': description_en,
+            'alt_text': alt_text
+        }
     
     def clear_cache(self, product_id=None):
         """Clear recommendation cache"""

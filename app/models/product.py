@@ -13,6 +13,8 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     color = db.Column(db.String(50))  # main color
     available_colors = db.Column(db.JSON)  # list of available colors
+    material = db.Column(db.String(100))  # e.g., cotton, polyester
+    sizes = db.Column(db.JSON)  # e.g., ['S', 'M', 'L', 'XL']
     
     # 3D Model paths (stored in Cloudinary)
     model_3d_url = db.Column(db.String(500))  # .glb file URL
@@ -38,6 +40,8 @@ class Product(db.Model):
             'price': self.price,
             'color': self.color,
             'available_colors': self.available_colors or [],
+            'material': self.material,
+            'sizes': self.sizes or [],
             'model_3d_url': self.model_3d_url,
             'thumbnail_url': self.thumbnail_url,
             'texture_urls': self.texture_urls or {},
