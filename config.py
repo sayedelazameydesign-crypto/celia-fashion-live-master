@@ -37,6 +37,8 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dev.db')
     SQLALCHEMY_ECHO = True
 
 class ProductionConfig(Config):

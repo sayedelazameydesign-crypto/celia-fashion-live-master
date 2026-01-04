@@ -9,8 +9,8 @@ def product_detail(product_id):
     """Product detail page with 3D viewer"""
     product = Product.query.get_or_404(product_id)
     
-    # Get recommendations
-    recommendations = recommender.recommend_by_similarity(product_id, limit=4)
+    # Get comprehensive recommendations for the product page
+    recommendations = recommender.get_product_page_recommendations(product_id, limit=4)
     
     return render_template('product.html', 
                          product=product,
