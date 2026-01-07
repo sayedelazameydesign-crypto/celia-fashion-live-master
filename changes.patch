@@ -1,0 +1,485 @@
+diff --git a/app/routes/ai_routes.py b/app/routes/ai_routes.py
+index 35bdfb4..22b625a 100644
+--- a/app/routes/ai_routes.py
++++ b/app/routes/ai_routes.py
+@@ -1,5 +1,7 @@
+ from flask import Blueprint, jsonify, request
+ from app.utils.ai_recommender import recommender
++from app.utils.ai_assistant import assistant
++from app.models.product import Product
+ 
+ bp = Blueprint('ai', __name__, url_prefix='/api')
+ 
+@@ -56,3 +58,22 @@ def clear_cache():
+     return jsonify({
+         'message': 'Cache cleared successfully'
+     })
++
++@bp.route('/chat', methods=['POST'])
++def chat():
++    """AI Assistant Chat"""
++    data = request.get_json()
++    user_message = data.get('message', '')
++    
++    if not user_message:
++        return jsonify({'error': 'Message is required'}), 400
++    
++    # Get some products for context
++    products = Product.query.limit(5).all()
++    context = ", ".join([f"{p.name} ({p.price} LE)" for p in products])
++    
++    response = assistant.get_response(user_message, context)
++    
++    return jsonify({
++        'response': response
++    })
+diff --git a/app/static/js/main.js b/app/static/js/main.js
+index 02903b7..7c171f6 100644
+--- a/app/static/js/main.js
++++ b/app/static/js/main.js
+@@ -160,3 +160,93 @@ function toggleMobileMenu() {
+ }
+ 
+ console.log('✅ Main JavaScript loaded');
++
++// AI Assistant Logic
++document.addEventListener('DOMContentLoaded', () => {
++    const aiToggle = document.getElementById('ai-toggle');
++    const aiClose = document.getElementById('ai-close');
++    const aiChatWindow = document.getElementById('ai-chat-window');
++    const aiForm = document.getElementById('ai-form');
++    const aiInput = document.getElementById('ai-input');
++    const aiMessages = document.getElementById('ai-messages');
++
++    if (aiToggle) {
++        aiToggle.addEventListener('click', () => {
++            aiChatWindow.classList.toggle('hidden');
++            if (!aiChatWindow.classList.contains('hidden')) {
++                aiInput.focus();
++            }
++        });
++    }
++
++    if (aiClose) {
++        aiClose.addEventListener('click', () => {
++            aiChatWindow.classList.add('hidden');
++        });
++    }
++
++    if (aiForm) {
++        aiForm.addEventListener('submit', async (e) => {
++            e.preventDefault();
++            const message = aiInput.value.trim();
++            if (!message) return;
++
++            // Add user message
++            addMessage(message, 'user');
++            aiInput.value = '';
++
++            // Add typing indicator
++            const typingId = addTypingIndicator();
++
++            try {
++                const response = await fetch('/api/chat', {
++                    method: 'POST',
++                    headers: { 'Content-Type': 'application/json' },
++                    body: JSON.stringify({ message })
++                });
++                const data = await response.json();
++                
++                removeTypingIndicator(typingId);
++                addMessage(data.response, 'ai');
++            } catch (error) {
++                removeTypingIndicator(typingId);
++                addMessage('معلش حصل مشكلة صغيرة، ممكن تجربي تاني؟ 😅', 'ai');
++            }
++        });
++    }
++
++    function addMessage(text, sender) {
++        const div = document.createElement('div');
++        div.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
++        
++        const innerDiv = document.createElement('div');
++        innerDiv.className = `${sender === 'user' ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'} p-3 rounded-2xl shadow-sm max-w-[80%] text-sm`;
++        innerDiv.textContent = text;
++        
++        div.appendChild(innerDiv);
++        aiMessages.appendChild(div);
++        aiMessages.scrollTop = aiMessages.scrollHeight;
++    }
++
++    function addTypingIndicator() {
++        const id = 'typing-' + Date.now();
++        const div = document.createElement('div');
++        div.id = id;
++        div.className = 'flex justify-start';
++        div.innerHTML = `
++            <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
++                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
++                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
++                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
++            </div>
++        `;
++        aiMessages.appendChild(div);
++        aiMessages.scrollTop = aiMessages.scrollHeight;
++        return id;
++    }
++
++    function removeTypingIndicator(id) {
++        const el = document.getElementById(id);
++        if (el) el.remove();
++    }
++});
+diff --git a/app/templates/index.html b/app/templates/index.html
+index aff1235..a40dcf4 100644
+--- a/app/templates/index.html
++++ b/app/templates/index.html
+@@ -1,14 +1,14 @@
+ {% extends 'layout.html' %}
+ 
+-{% block title %}متجر الملابس الذكي - تسوق بتقنية 3D{% endblock %}
++{% block title %}Celia Fashion Live | أشيك ملابس حريمي في مصر - تسوقي الآن{% endblock %}
+ 
+ {% block content %}
+ 
+ <!-- Hero Section -->
+ <section class="gradient-bg text-white py-20">
+     <div class="container mx-auto px-6 text-center">
+-        <h1 class="text-5xl font-bold mb-6 animate-fade-in">🛍️ تجربة تسوق فريدة مع 3D</h1>
+-        <p class="text-xl mb-8 text-purple-100">اكتشف منتجاتنا بعرض ثلاثي الأبعاد تفاعلي وتوصيات ذكية</p>
++        <h1 class="text-5xl font-bold mb-6 animate-fade-in">🛍️ شياكتك بتبدأ من هنا مع Celia</h1>
++        <p class="text-xl mb-8 text-purple-100">أحدث كوليكشن ملابس خروج وكاجوال بتجربة 3D لأول مرة في مصر</p>
+         <div class="flex gap-4 justify-center">
+             <a href="{{ url_for('main.search') }}" class="bg-white text-purple-600 px-8 py-4 rounded-lg font-bold hover:shadow-2xl transition">
+                 تصفح المنتجات
+diff --git a/app/templates/layout.html b/app/templates/layout.html
+index 6444293..1a47423 100644
+--- a/app/templates/layout.html
++++ b/app/templates/layout.html
+@@ -3,11 +3,11 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <title>{% block title %}متجر الملابس الذكي{% endblock %}</title>
++    <title>{% block title %}Celia Fashion Live | متجر ملابس حريمي أونلاين في مصر{% endblock %}</title>
+     
+     <!-- SEO Meta Tags -->
+-    <meta name="description" content="{% block description %}متجر ملابس تفاعلي مع عرض ثلاثي الأبعاد وتوصيات ذكية{% endblock %}">
+-    <meta name="keywords" content="ملابس, تسوق, 3D, ذكاء اصطناعي">
++    <meta name="description" content="{% block description %}اكتشفي أحدث صيحات الموضة في Celia Fashion Live. ملابس خروج وكاجوال بجودة عالية وتجربة تسوق 3D فريدة في مصر.{% endblock %}">
++    <meta name="keywords" content="ملابس حريمي, فساتين خروج, ملابس كاجوال, ستايل مصري, تسوق أونلاين مصر, Celia Fashion">
+     
+     <!-- Tailwind CSS -->
+     <script src="https://cdn.tailwindcss.com"></script>
+@@ -132,6 +132,48 @@
+         </div>
+     </footer>
+     
++    <!-- AI Assistant Widget -->
++    <div id="ai-assistant" class="fixed bottom-6 left-6 z-50">
++        <button id="ai-toggle" class="bg-purple-600 text-white p-4 rounded-full shadow-2xl hover:bg-purple-700 transition-all transform hover:scale-110">
++            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
++            </svg>
++        </button>
++        
++        <div id="ai-chat-window" class="hidden absolute bottom-20 left-0 w-80 md:w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
++            <div class="bg-purple-600 p-4 text-white flex justify-between items-center">
++                <div class="flex items-center gap-2">
++                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
++                    <span class="font-bold">مساعد Celia الذكي</span>
++                </div>
++                <button id="ai-close" class="text-white/80 hover:text-white">
++                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
++                    </svg>
++                </button>
++            </div>
++            
++            <div id="ai-messages" class="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50">
++                <div class="flex justify-start">
++                    <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[80%] text-sm">
++                        أهلاً بيكي في Celia Fashion! ✨ أنا هنا عشان أساعدك تلاقي أحلى ستايل. تحبي تشوفي كوليكشن الخروج ولا الكاجوال؟
++                    </div>
++                </div>
++            </div>
++            
++            <div class="p-4 bg-white border-t">
++                <form id="ai-form" class="flex gap-2">
++                    <input type="text" id="ai-input" placeholder="اسألي عن أي حاجة..." class="flex-1 border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
++                    <button type="submit" class="bg-purple-600 text-white p-2 rounded-xl hover:bg-purple-700 transition">
++                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
++                        </svg>
++                    </button>
++                </form>
++            </div>
++        </div>
++    </div>
++
+     <!-- Custom JavaScript -->
+     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+     {% block extra_js %}{% endblock %}
+diff --git a/app/templates/product.html b/app/templates/product.html
+index df55485..863231a 100644
+--- a/app/templates/product.html
++++ b/app/templates/product.html
+@@ -1,9 +1,28 @@
+ {% extends 'layout.html' %}
+ 
+-{% block title %}{{ product.name }} - متجر الملابس الذكي{% endblock %}
++{% block title %}{{ product.name }} | Celia Fashion Live{% endblock %}
+ 
+ {% block extra_head %}
+-<meta name="description" content="{{ product.description }}">
++<meta name="description" content="{{ product.description[:160] }}">
++<script type="application/ld+json">
++{
++  "@context": "https://schema.org/",
++  "@type": "Product",
++  "name": "{{ product.name }}",
++  "image": "{{ product.thumbnail_url }}",
++  "description": "{{ product.description }}",
++  "brand": {
++    "@type": "Brand",
++    "name": "Celia Fashion"
++  },
++  "offers": {
++    "@type": "Offer",
++    "priceCurrency": "EGP",
++    "price": "{{ product.price }}",
++    "availability": "https://schema.org/InStock"
++  }
++}
++</script>
+ {% endblock %}
+ 
+ {% block content %}
+diff --git a/app/utils/ai_assistant.py b/app/utils/ai_assistant.py
+new file mode 100644
+index 0000000..8bd76ff
+--- /dev/null
++++ b/app/utils/ai_assistant.py
+@@ -0,0 +1,43 @@
++import os
++from openai import OpenAI
++from app.models.product import Product
++
++class AIAssistant:
++    def __init__(self):
++        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
++        self.system_prompt = """
++        أنت مساعد ذكي لمتجر ملابس أونلاين اسمه "Celia Fashion Live".
++        جمهورك: نساء في مصر.
++        اللغة: عربي مصري احترافي (سهل – ودي – بيع من غير ضغط).
++        أسلوب الرد:
++        - عربي مصري
++        - ودود
++        - ذكي
++        - مختصر
++        - بيع غير مباشر
++        مثال: "تمام 👌 قولي بس هتلبسيه خروج ولا شغل وأنا أظبطك على مزاجك"
++        
++        مهامك:
++        1. الرد على أسئلة العملاء (الأسعار، المقاسات، الخامات، التوصيل، الاسترجاع).
++        2. طرح أسئلة ذكية لفهم العميل (كاجوال ولا خروج؟ مناسبة إيه؟ مقاسك؟ ألوان غامقة ولا فاتحة؟).
++        3. ترشيح منتجات بناءً على (نوع الاستخدام، الذوق، المقاس، اللون، الموسم).
++        """
++
++    def get_response(self, user_message, context=None):
++        try:
++            messages = [{"role": "system", "content": self.system_prompt}]
++            if context:
++                messages.append({"role": "system", "content": f"سياق المنتجات المتاحة: {context}"})
++            messages.append({"role": "user", "content": user_message})
++
++            response = self.client.chat.completions.create(
++                model="gpt-4.1-mini",
++                messages=messages,
++                temperature=0.7
++            )
++            return response.choices[0].message.content
++        except Exception as e:
++            print(f"Error in AI Assistant: {e}")
++            return "يا هلا بيكي! نورتي Celia Fashion. قوليلي محتاجة مساعدة في إيه وأنا معاكي؟ 😊"
++
++assistant = AIAssistant()
+diff --git a/app/utils/ai_recommender.py b/app/utils/ai_recommender.py
+index 8a5c2c0..209d02e 100644
+--- a/app/utils/ai_recommender.py
++++ b/app/utils/ai_recommender.py
+@@ -33,11 +33,51 @@ class AIRecommender:
+         
+         return ' '.join(features)
+     
++    def recommend_by_rules(self, product, limit=4):
++        """Phase 1: Rules-based recommendations"""
++        recommendations = []
++        
++        # Rule 1: If product is a dress, recommend bags and shoes
++        if 'dress' in product.category.lower() or 'فستان' in product.name:
++            bags_shoes = Product.query.filter(
++                (Product.category.ilike('%bag%')) | 
++                (Product.category.ilike('%shoe%')) |
++                (Product.category.ilike('%شنطة%')) |
++                (Product.category.ilike('%جزمة%'))
++            ).limit(limit).all()
++            recommendations.extend(bags_shoes)
++            
++        # Rule 2: If color is black, recommend complementary colors
++        if product.color and product.color.lower() in ['black', 'أسود']:
++            complementary = Product.query.filter(
++                Product.color.in_(['white', 'red', 'gold', 'أبيض', 'أحمر', 'ذهبي'])
++            ).limit(limit).all()
++            recommendations.extend(complementary)
++            
++        # Rule 3: If Soiree/Evening, recommend accessories
++        if any(tag in (product.ai_tags or []) for tag in ['soiree', 'evening', 'سواريه']):
++            accessories = Product.query.filter(
++                Product.category.ilike('%accessory%') | Product.category.ilike('%إكسسوار%')
++            ).limit(limit).all()
++            recommendations.extend(accessories)
++            
++        return [p.to_dict() for p in recommendations[:limit]]
++
+     def recommend_by_similarity(self, product_id, limit=4):
+         """
+         Recommend products using cosine similarity
+         Based on category, color, tags, and description
+         """
++        # Get the target product
++        target_product = Product.query.get(product_id)
++        if not target_product:
++            return []
++
++        # Try rules-based first
++        rules_recommendations = self.recommend_by_rules(target_product, limit)
++        if len(rules_recommendations) >= limit:
++            return rules_recommendations
++            
+         
+         # Check cache first
+         cache = RecommendationCache.query.filter_by(product_id=product_id).first()
+@@ -120,23 +160,35 @@ class AIRecommender:
+     
+     def generate_product_description(self, name, category, tags=None):
+         """
+-        Generate marketing description for a product
+-        Simple template-based approach (can be upgraded to GPT later)
++        Generate marketing description for a product using OpenAI
++        Includes SEO optimization and Egyptian market tone
++        """
++        from app.utils.ai_assistant import assistant
++        
++        prompt = f"""
++        اكتب وصف لمنتج ملابس بالمواصفات دي:
++        الاسم: {name}
++        الفئة: {category}
++        المميزات: {', '.join(tags) if tags else 'جودة عالية، تصميم عصري'}
++        
++        المطلوب:
++        1. وصف قصير (بيع) بلهجة مصرية ودودة.
++        2. وصف طويل (SEO) باللغة العربية الفصحى البسيطة.
++        3. ركز على الـ Benefits مش الـ Features بس.
++        4. مناسب للسوق المصري.
+         """
+-        templates = {
+-            'shirt': f"تعرف على {name} - قميص أنيق من فئة {category}. مثالي للارتداء اليومي والمناسبات الخاصة.",
+-            'pants': f"بنطلون {name} الرائع - تصميم عصري ومريح من فئة {category}. جودة عالية وأناقة لا مثيل لها.",
+-            'jacket': f"جاكيت {name} المميز - دفء وأناقة في تصميم واحد. من مجموعة {category} الفاخرة.",
+-            'dress': f"فستان {name} الساحر - أناقة وجمال يلفتان الأنظار. تصميم {category} فريد من نوعه.",
+-            'default': f"{name} - منتج مميز من فئة {category}. جودة عالية وتصميم عصري."
+-        }
+-        
+-        description = templates.get(category.lower(), templates['default'])
+-        
+-        if tags:
+-            description += f" يتميز بـ: {', '.join(tags)}."
+         
+-        return description
++        try:
++            response = assistant.client.chat.completions.create(
++                model="gpt-4.1-mini",
++                messages=[
++                    {"role": "system", "content": "أنت خبير SEO وكتابة محتوى تسويقي لبراندات الموضة في مصر."},
++                    {"role": "user", "content": prompt}
++                ]
++            )
++            return response.choices[0].message.content
++        except:
++            return f"{name} - قطعة مميزة من {category}، جودة عالية وتصميم يجنن هيخليكي متألقة في كل وقت."
+     
+     def clear_cache(self, product_id=None):
+         """Clear recommendation cache"""
+diff --git a/requirements.txt b/requirements.txt
+index c95b510..5c69d73 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -15,3 +15,4 @@ python-dotenv==1.0.0
+ 
+ # Production Server
+ gunicorn==21.2.0
++openai
+diff --git a/seed_data.py b/seed_data.py
+new file mode 100644
+index 0000000..16e418d
+--- /dev/null
++++ b/seed_data.py
+@@ -0,0 +1,56 @@
++from app import db, create_app
++from app.models.product import Product
++
++app = create_app()
++with app.app_context():
++    # Clear existing products
++    Product.query.delete()
++    
++    products = [
++        Product(
++            name="فستان سهرة أسود ملكي",
++            description="فستان سواريه أنيق جداً، خامة ليكرا مستوردة، مناسب لكل المناسبات السعيدة.",
++            category="Dresses",
++            price=1200.0,
++            color="Black",
++            ai_tags=["soiree", "evening", "elegant"],
++            featured=True,
++            stock=10
++        ),
++        Product(
++            name="طقم كاجوال صيفي",
++            description="طقم مريح جداً للجامعة أو الخروجات اليومية، قطن 100%.",
++            category="Casual",
++            price=850.0,
++            color="Blue",
++            ai_tags=["casual", "summer", "cotton"],
++            featured=True,
++            stock=15
++        ),
++        Product(
++            name="شنطة يد جلد طبيعي",
++            description="شنطة شيك جداً تكمل طقمك، جلد طبيعي 100% صناعة مصرية.",
++            category="Bags",
++            price=450.0,
++            color="Red",
++            ai_tags=["accessory", "leather"],
++            featured=False,
++            stock=5
++        ),
++        Product(
++            name="حذاء كعب عالي ذهبي",
++            description="حذاء سواريه كعب عالي، مريح جداً في اللبس وشيك جداً.",
++            category="Shoes",
++            price=600.0,
++            color="Gold",
++            ai_tags=["soiree", "shoes"],
++            featured=False,
++            stock=8
++        )
++    ]
++    
++    for p in products:
++        db.session.add(p)
++    
++    db.session.commit()
++    print("✅ Seed data added successfully!")
